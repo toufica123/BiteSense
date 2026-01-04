@@ -12,3 +12,10 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+html {
+  @apply bg-gray-50 text-gray-900;
+}
+
+html.dark {
+  @apply bg-gray-950 text-gray-100;
+}

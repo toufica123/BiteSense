@@ -21,13 +21,17 @@ function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-950">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="flex-1 overflow-x-hidden">
-        {renderContent()}
-      </main>
-    </div>
-  );
+  <div className="flex min-h-screen 
+                  bg-gray-50 text-gray-900 
+                  dark:bg-gray-950 dark:text-gray-100 
+                  transition-colors duration-300">
+    <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <main className="flex-1 overflow-x-hidden">
+      {renderContent()}
+    </main>
+  </div>
+);
+
 }
 
 export default App;
