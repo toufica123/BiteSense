@@ -1,14 +1,46 @@
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { sendChatMessage } from '../services/api';
+import { sendChatMessage, getSessionHistory } from '../services/api';
 
 const ChatInterface = ({ sessionId, initialMessage }) => {
-    const [messages, setMessages] = useState([
-        { role: 'assistant', content: initialMessage || "I've received your food label! Ask me anything about the ingredients." }
-    ]);
+    const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(true);
     const messagesEndRef = useRef(null);
+
+    // Load session history on component mount
+    useEffect(() => {
+        const loadHistory = async () => {
+            if (!sessionId) {
+                setMessages([
+                    { role: 'assistant', content: initialMessage || "I've received your food label! Ask me anything about the ingredients." }
+                ]);
+                setIsLoadingHistory(false);
+                return;
+            }
+
+            try {
+                const history = await getSessionHistory(sessionId);
+                if (history.messages && history.messages.length > 0) {
+                    setMessages(history.messages);
+                } else {
+                    setMessages([
+                        { role: 'assistant', content: initialMessage || "I've received your food label! Ask me anything about the ingredients." }
+                    ]);
+                }
+            } catch (error) {
+                console.error('Failed to load session history:', error);
+                setMessages([
+                    { role: 'assistant', content: initialMessage || "I've received your food label! Ask me anything about the ingredients." }
+                ]);
+            } finally {
+                setIsLoadingHistory(false);
+            }
+        };
+
+        loadHistory();
+    }, [sessionId, initialMessage]);
 
     // Auto-scroll to bottom when new messages arrive
     const scrollToBottom = () => {
@@ -68,38 +100,48 @@ const ChatInterface = ({ sessionId, initialMessage }) => {
 
             {/* Messages */}
             <div className="h-96 overflow-y-auto p-4 space-y-4">
-                {messages.map((message, index) => (
-                    <div
-                        key={index}
-                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                        <div
-                            className={`max-w-[85%] px-4 py-3 rounded-2xl ${message.role === 'user'
-                                    ? 'bg-emerald-500 text-white rounded-br-md'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
-                                }`}
-                        >
-                            {message.role === 'assistant' ? (
-                                <div className="prose prose-sm dark:prose-invert max-w-none
-                  prose-headings:text-gray-900 dark:prose-headings:text-white
-                  prose-p:text-gray-700 dark:prose-p:text-gray-300
-                  prose-strong:text-gray-900 dark:prose-strong:text-white
-                  prose-ul:text-gray-700 dark:prose-ul:text-gray-300
-                  prose-ol:text-gray-700 dark:prose-ol:text-gray-300
-                  prose-li:text-gray-700 dark:prose-li:text-gray-300
-                  prose-code:text-emerald-600 dark:prose-code:text-emerald-400
-                  prose-code:bg-gray-200 dark:prose-code:bg-gray-700
-                  prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-                  prose-pre:bg-gray-200 dark:prose-pre:bg-gray-700
-                  prose-a:text-emerald-500">
-                                    <ReactMarkdown>{message.content}</ReactMarkdown>
-                                </div>
-                            ) : (
-                                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                            )}
+                {isLoadingHistory ? (
+                    <div className="flex justify-center items-center h-full">
+                        <div className="flex gap-1">
+                            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                         </div>
                     </div>
-                ))}
+                ) : (
+                    messages.map((message, index) => (
+                        <div
+                            key={index}
+                            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                            <div
+                                className={`max-w-[85%] px-4 py-3 rounded-2xl ${message.role === 'user'
+                                        ? 'bg-emerald-500 text-white rounded-br-md'
+                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
+                                    }`}
+                            >
+                                {message.role === 'assistant' ? (
+                                    <div className="prose prose-sm dark:prose-invert max-w-none
+                      prose-headings:text-gray-900 dark:prose-headings:text-white
+                      prose-p:text-gray-700 dark:prose-p:text-gray-300
+                      prose-strong:text-gray-900 dark:prose-strong:text-white
+                      prose-ul:text-gray-700 dark:prose-ul:text-gray-300
+                      prose-ol:text-gray-700 dark:prose-ol:text-gray-300
+                      prose-li:text-gray-700 dark:prose-li:text-gray-300
+                      prose-code:text-emerald-600 dark:prose-code:text-emerald-400
+                      prose-code:bg-gray-200 dark:prose-code:bg-gray-700
+                      prose-code:px-1 prose-code:py-0.5 prose-code:rounded
+                      prose-pre:bg-gray-200 dark:prose-pre:bg-gray-700
+                      prose-a:text-emerald-500">
+                                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                )}
+                            </div>
+                        </div>
+                    ))
+                )}
                 {isLoading && (
                     <div className="flex justify-start">
                         <div className="bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded-2xl rounded-bl-md">

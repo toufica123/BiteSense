@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { extractTextFromImage, analyzeIngredients } = require("../services/ocrService");
 
 // Generate UUID v4 using crypto
 function uuidv4() {
@@ -7,9 +8,9 @@ function uuidv4() {
 const Session = require("../models/Session");
 
 exports.uploadLabel = async (req, res) => {
+  console.log("=== UPLOAD CONTROLLER CALLED ===");
   console.log("Upload request received");
   console.log("FILE:", req.file);
-  console.log("BODY:", req.body);
 
   try {
     let sessionId = req.headers["x-session-id"];
@@ -20,6 +21,7 @@ exports.uploadLabel = async (req, res) => {
 
     // Check for single file (multer.single() puts file in req.file)
     if (!req.file) {
+      console.log("No file found in request");
       return res.status(400).json({ error: "No image file uploaded" });
     }
 
@@ -40,14 +42,30 @@ exports.uploadLabel = async (req, res) => {
     session.imageMimeType = req.file.mimetype;
     session.imageSize = req.file.size;
 
-    // Set initial label text
-    session.labelText = "Uploaded image: " + req.file.originalname;
+    console.log("Starting ingredient extraction...");
+    
+    // Extract ingredients from uploaded image using OCR
+    const extractedIngredients = await extractTextFromImage(req.file.path);
+    console.log("Extracted ingredients:", extractedIngredients);
+
+    // Analyze the ingredients for insights
+    const analysis = analyzeIngredients(extractedIngredients);
+    console.log("Ingredient analysis:", analysis);
+
+    // Store extracted ingredients in session.labelText
+    session.labelText = extractedIngredients;
+    
+    // Create detailed initial message with analysis
+    const analysisMessage = createAnalysisMessage(extractedIngredients, analysis, req.file.originalname);
+    
     session.messages.push({
       role: "assistant",
-      content: "I've received your food label image! Ask me anything about the ingredients.",
+      content: analysisMessage,
     });
 
     await session.save();
+
+    console.log("Upload and analysis completed successfully");
 
     return res.json({
       message: "Upload successful",
@@ -62,3 +80,39 @@ exports.uploadLabel = async (req, res) => {
     res.status(500).json({ error: "Server error: " + err.message });
   }
 };
+
+/**
+ * Create a detailed analysis message for the user
+ */
+function createAnalysisMessage(ingredientText, analysis, filename) {
+  let message = `I've analyzed your food label image "${filename}" and extracted the following ingredients:\n\n`;
+  
+  message += `**Ingredients Found:**\n${ingredientText}\n\n`;
+  
+  message += `**Quick Analysis:**\n`;
+  message += `• Total ingredients: ${analysis.totalIngredients}\n`;
+  
+  if (analysis.allergens.length > 0) {
+    message += `• ⚠️ Potential allergens: ${analysis.allergens.join(', ')}\n`;
+  }
+  
+  if (analysis.additives.length > 0) {
+    message += `• 🧪 Additives/preservatives found: ${analysis.additives.slice(0, 3).join(', ')}${analysis.additives.length > 3 ? '...' : ''}\n`;
+  }
+  
+  if (analysis.isOrganic) {
+    message += `• 🌱 Contains organic ingredients\n`;
+  }
+  
+  if (analysis.hasArtificialColors) {
+    message += `• 🎨 Contains artificial colors\n`;
+  }
+  
+  if (analysis.hasHighFructoseCornSyrup) {
+    message += `• ⚠️ Contains high fructose corn syrup\n`;
+  }
+  
+  message += `\nFeel free to ask me any questions about these ingredients, their health effects, or alternatives!`;
+  
+  return message;
+}

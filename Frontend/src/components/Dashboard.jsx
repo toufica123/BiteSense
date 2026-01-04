@@ -65,13 +65,15 @@ const Dashboard = () => {
     setUploadedFile(null);
     setIngredientText('');
     setUploadError(null);
+    // Reset the session to start fresh
+    resetSession();
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         <div className="text-center mb-8 lg:mb-12">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent leading-snug">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent leading-snug py-2">
             Sense Every Bite
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
@@ -154,7 +156,7 @@ const Dashboard = () => {
                 </button>
               </div>
             )}
-            <ChatInterface sessionId={getSessionId()} />
+            <ChatInterface sessionId={uploadedFile?.sessionId || getSessionId()} />
           </div>
         )}
       </div>

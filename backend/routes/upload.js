@@ -4,29 +4,23 @@ const { uploadLabel } = require("../controllers/uploadController");
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
+// Simple multer setup
 const upload = multer({ 
-  storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Accept images only
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'), false);
-    }
-  }
+  dest: 'uploads/',
+  limits: { fileSize: 5 * 1024 * 1024 }
 });
 
-// Use single file upload instead of any()
-router.post("/", upload.single('image'), uploadLabel);
+// Upload route
+router.post("/", (req, res, next) => {
+  console.log("=== ROUTE HIT ===");
+  upload.single("uploaded_image")(req, res, (err) => {
+    if (err) {
+      console.error("Multer error:", err);
+      return res.status(400).json({ error: err.message });
+    }
+    console.log("=== CALLING CONTROLLER ===");
+    uploadLabel(req, res, next);
+  });
+});
 
 module.exports = router;

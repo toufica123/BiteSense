@@ -20,29 +20,40 @@ export async function greetServer() {
 }
 
 // Upload image to backend
-export async function uploadLabelImage(file) {
-  const formData = new FormData();
-  formData.append("image", file); // Fixed: was "uploaded_image"
+export async function uploadLabelImage(file, sessionId = null) {
+  try {
+    const formData = new FormData();
+    formData.append("uploaded_image", file); // Fixed: backend expects "uploaded_image"
 
-  const res = await fetch(`${BASE_URL}/uploadfile`, {
-    method: "POST",
-    body: formData,
-    headers: currentSessionId ? { "X-Session-Id": currentSessionId } : {}
-  });
+    const headers = {};
+    if (sessionId) {
+      headers["x-session-id"] = sessionId;
+    } else if (currentSessionId) {
+      headers["x-session-id"] = currentSessionId;
+    }
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Upload failed");
+    const res = await fetch(`${BASE_URL}/uploadfile`, {
+      method: "POST",
+      headers,
+      body: formData
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || data.message || "Upload failed");
+    }
+
+    // Store session ID from response
+    if (data.sessionId) {
+      currentSessionId = data.sessionId;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Upload error:", error);
+    throw error;
   }
-
-  const data = await res.json();
-
-  // Store session ID from response
-  if (data.sessionId) {
-    currentSessionId = data.sessionId;
-  }
-
-  return data;
 }
 
 // Send chat message to Groq via backend
@@ -68,7 +79,47 @@ export async function sendChatMessage(message) {
   return res.json();
 }
 
+// Get session history/messages
+export async function getSessionHistory(sessionId = null) {
+  const targetSessionId = sessionId || currentSessionId;
+  
+  if (!targetSessionId) {
+    throw new Error("No session ID provided");
+  }
+
+  const res = await fetch(`${BASE_URL}/chat/history/${targetSessionId}`, {
+    method: "GET"
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to get session history");
+  }
+
+  return res.json();
+}
+
 // Reset session (for new conversation)
 export function resetSession() {
   currentSessionId = null;
+}
+
+// Clear session history
+export async function clearSessionHistory(sessionId = null) {
+  const targetSessionId = sessionId || currentSessionId;
+  
+  if (!targetSessionId) {
+    throw new Error("No session ID provided");
+  }
+
+  const res = await fetch(`${BASE_URL}/chat/history/${targetSessionId}`, {
+    method: "DELETE"
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to clear session history");
+  }
+
+  return res.json();
 }

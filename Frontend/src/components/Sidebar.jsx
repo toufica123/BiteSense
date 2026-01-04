@@ -1,9 +1,9 @@
-import { useState, useContext } from 'react';
-import ThemeContext from '../context/ThemeContext';
+import { useState } from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isDark, toggleTheme } = useContext(ThemeContext);
+  const { isDark, toggleTheme } = useTheme();
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -30,8 +30,8 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       `}>
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <span className="text-2xl">🥗</span>
+            <h1 className="text-xl ml-5 font-bold text-gray-900 dark:text-white flex items-center gap-2">
+             
               BiteSense
             </h1>
           </div>

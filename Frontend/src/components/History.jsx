@@ -8,6 +8,7 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
   const [sessionDetails, setSessionDetails] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(false);
 
   useEffect(() => {
     fetchHistory();
@@ -15,11 +16,16 @@ const History = () => {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/history`);
+      setLoading(true);
+      const res = await fetch(`${BASE_URL}/chat/history`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch history');
+      }
       const data = await res.json();
       setHistoryItems(data);
     } catch (error) {
       console.error("Error fetching history:", error);
+      setHistoryItems([]);
     } finally {
       setLoading(false);
     }
@@ -27,12 +33,35 @@ const History = () => {
 
   const fetchSessionDetails = async (sessionId) => {
     try {
-      const res = await fetch(`${BASE_URL}/history/${sessionId}`);
+      setLoadingSession(true);
+      const res = await fetch(`${BASE_URL}/chat/history/${sessionId}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch session details');
+      }
       const data = await res.json();
       setSessionDetails(data);
       setSelectedSession(sessionId);
     } catch (error) {
       console.error("Error fetching session:", error);
+    } finally {
+      setLoadingSession(false);
+    }
+  };
+
+  const clearSessionHistory = async (sessionId) => {
+    try {
+      const res = await fetch(`${BASE_URL}/chat/history/${sessionId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error('Failed to clear session history');
+      }
+      // Refresh the session details
+      await fetchSessionDetails(sessionId);
+      // Refresh the history list
+      await fetchHistory();
+    } catch (error) {
+      console.error("Error clearing session history:", error);
     }
   };
 
@@ -60,9 +89,10 @@ const History = () => {
           <h1 className="text-3xl sm:text-4xl font-bold">Analysis History</h1>
           <button
             onClick={fetchHistory}
-            className="text-emerald-500 hover:text-emerald-400 text-sm font-medium"
+            disabled={loading}
+            className="text-emerald-500 hover:text-emerald-400 text-sm font-medium disabled:opacity-50"
           >
-            Refresh
+            {loading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
 
@@ -95,6 +125,12 @@ const History = () => {
                       <span>{formatDate(item.date)}</span>
                       <span>•</span>
                       <span>{item.messageCount} messages</span>
+                      {item.labelText && (
+                        <>
+                          <span>•</span>
+                          <span className="truncate max-w-xs">{item.labelText.substring(0, 50)}...</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <svg className="w-6 h-6 text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,7 +144,7 @@ const History = () => {
       </div>
 
       {/* Session Details Modal */}
-      {selectedSession && sessionDetails && (
+      {selectedSession && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={closeModal}>
           <div
             className="bg-white dark:bg-gray-900 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
@@ -116,39 +152,64 @@ const History = () => {
           >
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {sessionDetails.imageOriginalName || "Chat History"}
+                {sessionDetails?.imageOriginalName || "Chat History"}
               </h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4">
-              {sessionDetails.messages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] px-4 py-3 rounded-2xl ${msg.role === 'user'
-                        ? 'bg-emerald-500 text-white rounded-br-md'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
-                      }`}
+              <div className="flex items-center gap-2">
+                {sessionDetails && (
+                  <button
+                    onClick={() => clearSessionHistory(selectedSession)}
+                    className="text-red-500 hover:text-red-600 text-sm font-medium"
                   >
-                    {msg.role === 'assistant' ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
-                    ) : (
-                      <p className="text-sm">{msg.content}</p>
-                    )}
-                  </div>
+                    Clear History
+                  </button>
+                )}
+                <button
+                  onClick={closeModal}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {loadingSession ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-6 h-6 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-              ))}
+              ) : sessionDetails ? (
+                <div className="space-y-4">
+                  {sessionDetails.messages.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] px-4 py-3 rounded-2xl ${msg.role === 'user'
+                            ? 'bg-emerald-500 text-white rounded-br-md'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
+                          }`}
+                      >
+                        {msg.role === 'assistant' ? (
+                          <div className="prose prose-sm dark:prose-invert max-w-none
+                            prose-headings:text-gray-900 dark:prose-headings:text-white
+                            prose-p:text-gray-700 dark:prose-p:text-gray-300
+                            prose-strong:text-gray-900 dark:prose-strong:text-white
+                            prose-ul:text-gray-700 dark:prose-ul:text-gray-300
+                            prose-li:text-gray-700 dark:prose-li:text-gray-300">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="text-sm">{msg.content}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 dark:text-gray-400">Failed to load session details</p>
+              )}
             </div>
           </div>
         </div>

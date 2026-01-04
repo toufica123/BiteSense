@@ -1,8 +1,8 @@
 import { useContext, useState } from 'react';
-import ThemeContext from '../context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 const Settings = () => {
-  const { isDark } = useContext(ThemeContext);
+  const { isDark, toggleTheme } = useTheme();
   const [detailedAnalysis, setDetailedAnalysis] = useState(true);
   const [highlightAllergens, setHighlightAllergens] = useState(true);
   const [saveHistory, setSaveHistory] = useState(false);
@@ -77,9 +77,21 @@ const Settings = () => {
                   <p className="text-gray-900 dark:text-white font-medium">Theme</p>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">Choose your preferred theme</p>
                 </div>
-                <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  {isDark ? '🌙 Dark Mode' : '☀️ Light Mode'}
-                </div>
+                <button
+                  onClick={toggleTheme}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${
+                    isDark ? 'bg-gray-700' : 'bg-yellow-400'
+                  }`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform flex items-center justify-center text-xs ${
+                    isDark ? 'right-1' : 'left-1'
+                  }`}>
+                    {isDark ? '🌙' : '☀️'}
+                  </div>
+                </button>
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Current theme: <span className="font-medium">{isDark ? 'Dark Mode' : 'Light Mode'}</span>
               </div>
             </div>
           </div>
