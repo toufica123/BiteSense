@@ -6,12 +6,27 @@ const router = express.Router();
 
 const storage = multer.diskStorage({
   destination: "uploads/",
-  filename: (_, file, cb) =>
-    cb(null, Date.now() + "-" + file.originalname),
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images only
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
-router.post("/", upload.any(), uploadLabel);
+// Use single file upload instead of any()
+router.post("/", upload.single('image'), uploadLabel);
 
 module.exports = router;

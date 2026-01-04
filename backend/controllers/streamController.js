@@ -5,7 +5,7 @@ const client = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-exports.chat = async (req, res) => {
+exports.streamChat = async (req, res) => {
   const sessionId = req.headers["x-session-id"];
   const { message } = req.body;
 
@@ -21,6 +21,12 @@ exports.chat = async (req, res) => {
   session.messages.push({ role: "user", content: message });
 
   try {
+    // Set headers for Server-Sent Events
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Session-Id', sessionId);
+
     // Create the prompt for ingredient suggestions
     const ingredientPrompt = `Based on the following ingredients: ${message}, please provide recipe suggestions and cooking tips. Consider the ingredients available and suggest creative ways to use them together.`;
 
@@ -39,19 +45,22 @@ exports.chat = async (req, res) => {
       stop: null
     });
 
-    let reply = "";
+    let fullReply = "";
     
-    // Handle streaming response
+    // Stream the response
     for await (const chunk of completion) {
       const content = chunk.choices[0]?.delta?.content || "";
-      reply += content;
+      if (content) {
+        fullReply += content;
+        res.write(content);
+      }
     }
 
-    session.messages.push({ role: "assistant", content: reply });
+    // Save the complete response to session
+    session.messages.push({ role: "assistant", content: fullReply });
     await session.save();
 
-    res.setHeader("X-Session-Id", sessionId);
-    res.json({ reply });
+    res.end();
 
   } catch (error) {
     console.error("Groq API Error:", error);
@@ -60,10 +69,7 @@ exports.chat = async (req, res) => {
     session.messages.push({ role: "assistant", content: fallbackReply });
     await session.save();
 
-    res.setHeader("X-Session-Id", sessionId);
-    res.status(500).json({ 
-      error: "AI service temporarily unavailable",
-      reply: fallbackReply 
-    });
+    res.write(fallbackReply);
+    res.end();
   }
 };
